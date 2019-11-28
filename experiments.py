@@ -132,7 +132,7 @@ def do_experiment(dataset, dataset_name, random_state, k_neighbours, outdir, per
 
     df.to_csv(outdir + dataset_name.lower() + '_two_thirds_results.csv', index=False)
 
-    # 5 Fold Split #
+    # 5 Folds Split #
     # Re-initialize result lists
     accuracy_list = []
     precision_list = []

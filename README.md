@@ -6,6 +6,9 @@ $  pip3 install -r requirements.txt
 ```
 
 ### Running
+
+Custom hyperparameters in a textfile i.e. _"./configs/config.txt"_.
+
 ```sh
 $  python3 experiments.py ./configs/config.txt
 ```
