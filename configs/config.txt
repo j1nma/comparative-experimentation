@@ -3,9 +3,9 @@
 --outdir
 results/
 --k_neighbours
-10
-15
-20
+3
+27
+81
 --perceptron_iterations
 40
 --perceptron_learning_rate

@@ -42,10 +42,4 @@ Presented in a tabular form, with one table for each dataset and splitting combi
 
 #### Are the differences in the efficiency measurements?
 
-#### How is the runtime changing with the different data sets?
-
-Your submission shall contain
-
-The textual report
-All code samples and
-All data sets (if not already included in your software package, e.g. Python)
+#### How is the runtime changing with the different datasets?
