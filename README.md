@@ -6,11 +6,8 @@ The aim is to get a feeling of how well each of these algorithms works,
 and whether there are differences depending on the dataset.
 
 ### Datasets
-* Iris (https://archive.ics.uci.edu/ml/datasets/Iris,
-    for Python, http://scikit-learn.org/stable/modules/generated/sklearn.datasets.load_iris.html) 
-* Handwritten digits (https://archive.ics.uci.edu/ml/datasets/Optical+Recognition+of+Handwritten+Digits, of which
- only the test set of 1797 instances is used;
- for Python, http://scikit-learn.org/stable/modules/generated/sklearn.datasets.load_digits.html)
+* Iris (http://scikit-learn.org/stable/modules/generated/sklearn.datasets.load_iris.html) 
+* Handwritten digits (http://scikit-learn.org/stable/modules/generated/sklearn.datasets.load_digits.html)
 
 ### Classifiers
 * k-NN (with 3 different values for k)
