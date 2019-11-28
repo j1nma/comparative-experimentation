@@ -1,5 +1,16 @@
 ## Comparative Experimentation of Machine Learning Classifiers
 
+### Installation
+```sh
+$  pip3 install -r requirements.txt
+```
+
+### Running
+```sh
+$  python3 experiments.py ./configs/config.txt
+```
+
+A _results_ folder will contain a timestamp directory with the latest results.
 
 This work is a experiment with a number of algorithms on several datasets.
 The aim is to get a feeling of how well each of these algorithms works, 
