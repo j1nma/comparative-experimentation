@@ -1,0 +1,155 @@
+import argparse
+import datetime
+import numpy as np
+import os
+import pandas as pd
+import sys
+import time
+
+from sklearn import datasets
+from sklearn import metrics
+from sklearn import neighbors
+from sklearn import tree
+from sklearn.linear_model import Perceptron
+from sklearn.model_selection import train_test_split
+from sklearn.naive_bayes import GaussianNB
+from sklearn.utils import shuffle
+
+
+# TODO http://scikit-learn.org/stable/modules/cross_validation.html#computing-cross-validated-metrics
+
+
+def get_args_parser():
+    parser = argparse.ArgumentParser(fromfile_prefix_chars='@')
+    parser.add_argument(
+        "-s",
+        "--seed",
+        default=1,
+        help="Random seed."
+    )
+    parser.add_argument(
+        "-od",
+        "--outdir",
+        default='results/'
+    )
+    parser.add_argument(
+        "-k",
+        "--k_neighbours",
+        nargs="+",
+        help="Values of k for k-NN."
+    )
+
+    parser.add_argument(
+        "-pi",
+        "--perceptron_iterations",
+        default=40,
+        type=int,
+        help="Iterations (epochs) over the data for Perceptron learner.."
+    )
+    parser.add_argument(
+        "-eta",
+        "--perceptron_learning_rate",
+        default=0.1,
+        type=float,
+        help="Learning rate for Perceptron learner."
+    )
+
+    return parser
+
+
+def iris_experiment(seed, k_neighbours, outdir, perceptron_iterations, perceptron_learning_rate):
+    # Load Iris dataset
+    dataset = datasets.load_iris()
+
+    # Shuffle input data
+    random_state = seed
+    data, target = shuffle(dataset.data, dataset.target, random_state=random_state)
+
+    # Prepare a train/test set split
+    # Split 2/3 into training set and 1/3 test set
+    # Use the random number generator state +1; this will influence how the data is split
+    X_train, X_test, y_train, y_test = train_test_split(data, target, test_size=0.33, random_state=(random_state + 1))
+
+    # Initialize result lists
+    classifier_name_list = []
+    accuracy_list = []
+    precision_list = []
+    training_time_list = []
+    testing_time_list = []
+
+    classifiers = []
+
+    # Add k-NN classifier for each k given
+    for k_neighbour in k_neighbours:
+        classifier = neighbors.KNeighborsClassifier(int(k_neighbour))
+        classifiers.append(classifier)
+        classifier_name_list.append('k-NN (' + k_neighbour + '-NN)')
+
+    # Add Naive Bayes classifier
+    classifiers.append(GaussianNB())
+    classifier_name_list.append('Naive Bayes')
+
+    # Add Perceptron classifier with the given parameters
+    classifiers.append(
+        Perceptron(max_iter=perceptron_iterations, eta0=perceptron_learning_rate, random_state=random_state))
+    classifier_name_list.append('Perceptron')
+
+    # Add Decision Trees classifier
+    classifiers.append(tree.DecisionTreeClassifier())
+    classifier_name_list.append('Decision Trees')
+
+    for classifier in classifiers:
+        # Train the classifier
+        start_train_time = time.time()
+        classifier.fit(X_train, y_train)
+        end_train_time = time.time()
+
+        # Predict the test set on trained classifier
+        start_test_time = time.time()
+        y_test_predicted = classifier.predict(X_test)
+        end_test_time = time.time()
+
+        # Compute metrics
+        accuracy = metrics.accuracy_score(y_test, y_test_predicted)
+        precision = metrics.precision_score(y_test, y_test_predicted, average="micro")
+        training_time = "{0:.5f}".format(end_train_time - start_train_time)
+        testing_time = "{0:.5f}".format(end_test_time - start_test_time)
+
+        accuracy_list.append(accuracy)
+        precision_list.append(precision)
+        training_time_list.append(training_time)
+        testing_time_list.append(testing_time)
+
+    df = pd.DataFrame()
+    df['Iris / 2/3'] = np.array(classifier_name_list)
+    df['Accuracy'] = np.array(accuracy_list)
+    df['Precision'] = np.array(precision_list)
+    df['Training time (s)'] = np.array(training_time_list)
+    df['Testing time (s)'] = np.array(testing_time_list)
+
+    df.to_csv(outdir + 'iris_two_thirds_results.csv', index=False)
+
+
+def experiments(config_file):
+    args = get_args_parser().parse_args(['@' + config_file])
+
+    # Create results directory
+    if not os.path.exists(args.outdir):
+        os.mkdir(args.outdir)
+        print("Directory ", args.outdir, " created.")
+
+    # Create results directory
+    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+    outdir = args.outdir + timestamp + '/'
+    os.mkdir(outdir)
+    print("Directory ", outdir, " created.")
+
+    iris_experiment(int(args.seed),
+                    list(args.k_neighbours),
+                    outdir,
+                    int(args.perceptron_iterations),
+                    float(args.perceptron_learning_rate))
+
+
+if __name__ == "__main__":
+    experiments(config_file=sys.argv[1])
