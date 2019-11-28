@@ -22,7 +22,7 @@ def get_args_parser():
     parser.add_argument(
         "-s",
         "--seed",
-        default=1,
+        default=19034,
         help="Random seed."
     )
     parser.add_argument(
@@ -113,10 +113,10 @@ def do_experiment(dataset, dataset_name, random_state, k_neighbours, outdir, per
         end_test_time = time.time()
 
         # Compute metrics
-        accuracy = metrics.accuracy_score(y_test, y_test_predicted)
-        precision = metrics.precision_score(y_test, y_test_predicted, average="micro")
-        training_time = "{0:.5f}".format(end_train_time - start_train_time)
-        testing_time = "{0:.5f}".format(end_test_time - start_test_time)
+        accuracy = "{0:.2f}".format(metrics.accuracy_score(y_test, y_test_predicted))
+        precision = "{0:.2f}".format(metrics.precision_score(y_test, y_test_predicted, average="micro"))
+        training_time = "{0:.4f}".format(end_train_time - start_train_time)
+        testing_time = "{0:.4f}".format(end_test_time - start_test_time)
 
         accuracy_list.append(accuracy)
         precision_list.append(precision)
