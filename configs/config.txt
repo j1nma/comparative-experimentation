@@ -1,0 +1,12 @@
+--seed
+19034
+--outdir
+results/
+--k_neighbours
+10
+15
+20
+--perceptron_iterations
+40
+--perceptron_learning_rate
+0.1
