@@ -17,9 +17,6 @@ from sklearn.naive_bayes import GaussianNB
 from sklearn.utils import shuffle
 
 
-# TODO http://scikit-learn.org/stable/modules/cross_validation.html#computing-cross-validated-metrics
-
-
 def get_args_parser():
     parser = argparse.ArgumentParser(fromfile_prefix_chars='@')
     parser.add_argument(
@@ -65,12 +62,10 @@ def get_args_parser():
     return parser
 
 
-def iris_experiment(seed, k_neighbours, outdir, perceptron_iterations, perceptron_learning_rate, kfold):
-    # Load Iris dataset
-    dataset = datasets.load_iris()
-
+def do_experiment(dataset, dataset_name, random_state, k_neighbours, outdir, perceptron_iterations,
+                  perceptron_learning_rate,
+                  k_fold):
     # Shuffle input data
-    random_state = seed
     data, target = shuffle(dataset.data, dataset.target, random_state=random_state)
 
     # Prepare a train/test set split
@@ -129,13 +124,13 @@ def iris_experiment(seed, k_neighbours, outdir, perceptron_iterations, perceptro
         testing_time_list.append(testing_time)
 
     df = pd.DataFrame()
-    df['Iris/2/3'] = np.array(classifier_name_list)
+    df[dataset_name + '/2/3'] = np.array(classifier_name_list)
     df['Accuracy'] = np.array(accuracy_list)
     df['Precision'] = np.array(precision_list)
     df['Training time (s)'] = np.array(training_time_list)
     df['Testing time (s)'] = np.array(testing_time_list)
 
-    df.to_csv(outdir + 'iris_two_thirds_results.csv', index=False)
+    df.to_csv(outdir + dataset_name.lower() + '_two_thirds_results.csv', index=False)
 
     ############ 5 FOLDS #############
     # Re-initialize result lists
@@ -147,21 +142,25 @@ def iris_experiment(seed, k_neighbours, outdir, perceptron_iterations, perceptro
     scoring = ['accuracy', 'precision_micro']
 
     for classifier in classifiers:
-        scores = cross_validate(classifier, data, target, scoring=scoring, cv=kfold)
+        scores = cross_validate(classifier, data, target, scoring=scoring, cv=k_fold)
 
-        accuracy_list.append(["{0:.2f}".format(s) for s in scores['test_accuracy']])
-        precision_list.append(["{0:.2f}".format(s) for s in scores['test_precision_micro']])
-        training_time_list.append(["{0:.5f}".format(s) for s in scores['fit_time']])
-        testing_time_list.append(["{0:.5f}".format(s) for s in scores['score_time']])
+        accuracy_list.append(
+            "{:.2f} ± {:.2f}".format(np.mean(scores['test_accuracy'], axis=0), np.std(scores['test_accuracy'], axis=0)))
+        precision_list.append("{:.2f} ± {:.2f}".format(np.mean(scores['test_precision_micro'], axis=0),
+                                                       np.std(scores['test_precision_micro'], axis=0)))
+        training_time_list.append("{:.4f} ± {:.4f}".format(np.mean(scores['fit_time'], axis=0),
+                                                           np.std(scores['fit_time'], axis=0)))
+        testing_time_list.append("{:.4f} ± {:.4f}".format(np.mean(scores['score_time'], axis=0),
+                                                          np.std(scores['score_time'], axis=0)))
 
     df = pd.DataFrame()
-    df['Iris/' + str(kfold) + '-folds'] = np.array(classifier_name_list)
+    df[dataset_name + '/' + str(k_fold) + '-folds'] = np.array(classifier_name_list)
     df['Accuracy'] = accuracy_list
     df['Precision'] = precision_list
     df['Training time (s)'] = training_time_list
     df['Testing time (s)'] = testing_time_list
 
-    df.to_csv(outdir + 'iris_5_folds_results.csv', index=False)
+    df.to_csv(outdir + dataset_name.lower() + '_5_folds_results.csv', index=False)
 
 
 def experiments(config_file):
@@ -176,14 +175,25 @@ def experiments(config_file):
     timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
     outdir = args.outdir + timestamp + '/'
     os.mkdir(outdir)
-    print("Directory ", outdir, " created.")
+    print("Directory", outdir, "created.")
 
-    iris_experiment(int(args.seed),
-                    list(args.k_neighbours),
-                    outdir,
-                    int(args.perceptron_iterations),
-                    float(args.perceptron_learning_rate),
-                    int(args.kfold))
+    do_experiment(datasets.load_iris(),
+                  "Iris",
+                  int(args.seed),
+                  list(args.k_neighbours),
+                  outdir,
+                  int(args.perceptron_iterations),
+                  float(args.perceptron_learning_rate),
+                  int(args.kfold))
+
+    do_experiment(datasets.load_digits(),
+                  "Digits",
+                  int(args.seed),
+                  list(args.k_neighbours),
+                  outdir,
+                  int(args.perceptron_iterations),
+                  float(args.perceptron_learning_rate),
+                  int(args.kfold))
 
 
 if __name__ == "__main__":
