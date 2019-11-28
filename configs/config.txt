@@ -10,3 +10,5 @@ results/
 40
 --perceptron_learning_rate
 0.1
+--kfold
+5

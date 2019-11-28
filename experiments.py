@@ -11,6 +11,7 @@ from sklearn import metrics
 from sklearn import neighbors
 from sklearn import tree
 from sklearn.linear_model import Perceptron
+from sklearn.model_selection import cross_validate
 from sklearn.model_selection import train_test_split
 from sklearn.naive_bayes import GaussianNB
 from sklearn.utils import shuffle
@@ -53,11 +54,18 @@ def get_args_parser():
         type=float,
         help="Learning rate for Perceptron learner."
     )
+    parser.add_argument(
+        "-cv",
+        "--kfold",
+        default=5,
+        type=int,
+        help="Specify the number of folds in a `(Stratified)KFold`."
+    )
 
     return parser
 
 
-def iris_experiment(seed, k_neighbours, outdir, perceptron_iterations, perceptron_learning_rate):
+def iris_experiment(seed, k_neighbours, outdir, perceptron_iterations, perceptron_learning_rate, kfold):
     # Load Iris dataset
     dataset = datasets.load_iris()
 
@@ -121,13 +129,39 @@ def iris_experiment(seed, k_neighbours, outdir, perceptron_iterations, perceptro
         testing_time_list.append(testing_time)
 
     df = pd.DataFrame()
-    df['Iris / 2/3'] = np.array(classifier_name_list)
+    df['Iris/2/3'] = np.array(classifier_name_list)
     df['Accuracy'] = np.array(accuracy_list)
     df['Precision'] = np.array(precision_list)
     df['Training time (s)'] = np.array(training_time_list)
     df['Testing time (s)'] = np.array(testing_time_list)
 
     df.to_csv(outdir + 'iris_two_thirds_results.csv', index=False)
+
+    ############ 5 FOLDS #############
+    # Re-initialize result lists
+    accuracy_list = []
+    precision_list = []
+    training_time_list = []
+    testing_time_list = []
+
+    scoring = ['accuracy', 'precision_micro']
+
+    for classifier in classifiers:
+        scores = cross_validate(classifier, data, target, scoring=scoring, cv=kfold)
+
+        accuracy_list.append(["{0:.2f}".format(s) for s in scores['test_accuracy']])
+        precision_list.append(["{0:.2f}".format(s) for s in scores['test_precision_micro']])
+        training_time_list.append(["{0:.5f}".format(s) for s in scores['fit_time']])
+        testing_time_list.append(["{0:.5f}".format(s) for s in scores['score_time']])
+
+    df = pd.DataFrame()
+    df['Iris/' + str(kfold) + '-folds'] = np.array(classifier_name_list)
+    df['Accuracy'] = accuracy_list
+    df['Precision'] = precision_list
+    df['Training time (s)'] = training_time_list
+    df['Testing time (s)'] = testing_time_list
+
+    df.to_csv(outdir + 'iris_5_folds_results.csv', index=False)
 
 
 def experiments(config_file):
@@ -148,7 +182,8 @@ def experiments(config_file):
                     list(args.k_neighbours),
                     outdir,
                     int(args.perceptron_iterations),
-                    float(args.perceptron_learning_rate))
+                    float(args.perceptron_learning_rate),
+                    int(args.kfold))
 
 
 if __name__ == "__main__":
