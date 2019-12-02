@@ -103,9 +103,10 @@ petal and sepal length and width, with 50 samples for each type:
 	
 Its dimensionality is 4 real, positive values.
 
-On the other hand, the digits dataset has 1797 samples of handwritten digits from 0 to 9, a class for each.
-As explained in scikit-learn user guide, normalized bitmaps of handwritten digits were extracted from a preprinted form.
-43 people contributed, 30 to the training set and 13 to the test set, with no overlapping between sets. 32x32 bitmaps 
+On the other hand, the digits dataset has 1797 samples of handwritten digits from 0 to 9, a class for each digit.
+Each class has around 180 samples. As explained in scikit-learn user guide, normalized bitmaps of handwritten digits
+were extracted from a pre-printed form.
+    43 people contributed, 30 to the training set and 13 to the test set, with no overlapping between sets. 32x32 bitmaps 
 are divided into non-overlapping blocks of 4x4 and the number of on pixels are counted in each block.
 This generates an input matrix of 8x8 where each element is an integer in the range 0 to 16.
 It also reduces dimensionality and gives invariance to small distortions.
@@ -124,3 +125,38 @@ With this in mind, Perceptron classifier training time is seen to be significant
 It is clear that the dimensionality plays a major role in the difference in runtime between the datasets.
 The greater computation times for the digits dataset with respect to the ones from the iris dataset can be distinguished easily;
 roughly an order of magnitude greater in most cases, independently of the split chosen.
+
+#### Why are accuracy and precision equal?
+
+According to sklearn’s documentation:
+> Note that for “micro”-averaging in a multiclass setting with all labels included will produce equal
+> precision, recall and F, while “weighted” averaging may produce an F-score that is not between precision and recall.
+
+From https://simonhessner.de/why-are-precision-recall-and-f1-score-equal-when-using-micro-averaging-in-a-multi-class-problem/:
+> Micro averaging scheme is not prone to inaccurate values due to an unequally distributed test set
+> (e.g. 3 classes and one of these has 98% of the samples). This is why I prefer this scheme over
+> the macro averaging scheme. Besides micro averaging, one might also consider weighted averaging
+> in case of an unequally distributed data set.
+
+> If there is a false positive, there will always be a false negative and vice versa, because always one class is predicted.
+> If class A is predicted and the true label is B, then there is a FP for A and a FN for B.
+> If the prediction is correct, i.e. class A is predicted and A is also the true label, then there is neither 
+> a false positive nor a false negative but only a true positive.
+
+An example.
+Confusion matrix:
+```
+    13  0  0
+    3   6  12
+    0   0  16
+```
+
+Accuracy calculation:
+```
+(13+6+16)/50 = 0.7
+```
+
+Micro-precision calculation:
+```
+((13/13)*(13/50) + (6/21)*(21/50) + (16/16)*(16/50)) = 0.7
+```
