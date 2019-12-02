@@ -5,6 +5,8 @@
 $  pip3 install -r requirements.txt
 ```
 
+---
+
 ### Running
 
 Custom hyperparameters in a textfile i.e. _"./configs/config.txt"_.
@@ -19,9 +21,13 @@ This work is a experiment with a number of algorithms on several datasets.
 The aim is to get a feeling of how well each of these algorithms works, 
 and whether there are differences depending on the dataset.
 
+---
+
 ### Datasets
 * Iris (http://scikit-learn.org/stable/modules/generated/sklearn.datasets.load_iris.html) 
 * Handwritten digits (http://scikit-learn.org/stable/modules/generated/sklearn.datasets.load_digits.html)
+
+---
 
 ### Classifiers
 * k-NN (with 3 different values for k)
@@ -32,15 +38,24 @@ and whether there are differences depending on the dataset.
 For each dataset, each classifier is trained and evaluated (with parameter variations), and then evaluation metrics are
 computed.
 
+---
+
 ### Metrics
 * Effectiveness: accuracy, precision
 * Efficiency: runtime for training and testing
 
+---
+
 ### Splitting technique
 The holdout method with 2/3 training and the rest for testing is used once, and cross validation with 5 folds also used once.
 
+---
+
 ### Results
 See README.md
+
+---
+
 
 ### Description and analysis
 
@@ -108,9 +123,9 @@ From https://simonhessner.de/why-are-precision-recall-and-f1-score-equal-when-us
 An example.
 Confusion matrix:
 ```
-    13  0  0
-    3   6  12
-    0   0  16
+    [[  13  0   0    ]
+    [   3   6   12   ]
+    [   0   0   16   ]]
 ```
 
 Accuracy calculation:

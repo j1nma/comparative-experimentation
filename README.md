@@ -146,9 +146,9 @@ From https://simonhessner.de/why-are-precision-recall-and-f1-score-equal-when-us
 An example.
 Confusion matrix:
 ```
-    13  0  0
-    3   6  12
-    0   0  16
+    [[  13  0   0    ]
+    [   3   6   12   ]
+    [   0   0   16   ]]
 ```
 
 Accuracy calculation:
