@@ -22,7 +22,7 @@ def get_args_parser():
     parser.add_argument(
         "-s",
         "--seed",
-        default=19034,
+        default=1910299034,
         help="Random seed."
     )
     parser.add_argument(
