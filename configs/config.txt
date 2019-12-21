@@ -1,11 +1,14 @@
 --seed
-19034
+1910299034
 --outdir
 results/
 --k_neighbours
 3
 27
 81
+--n_trees
+50
+100
 --perceptron_iterations
 40
 --perceptron_learning_rate
