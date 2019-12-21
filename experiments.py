@@ -10,6 +10,7 @@ from sklearn import datasets
 from sklearn import metrics
 from sklearn import neighbors
 from sklearn import tree
+from sklearn.ensemble import RandomForestClassifier
 from sklearn.linear_model import Perceptron
 from sklearn.model_selection import cross_validate
 from sklearn.model_selection import train_test_split
@@ -36,7 +37,12 @@ def get_args_parser():
         nargs="+",
         help="Values of k for k-NN."
     )
-
+    parser.add_argument(
+        "-nt",
+        "--n_trees",
+        nargs="+",
+        help="Values of number of tress for Random Forests."
+    )
     parser.add_argument(
         "-pi",
         "--perceptron_iterations",
@@ -62,7 +68,7 @@ def get_args_parser():
     return parser
 
 
-def do_experiment(dataset, dataset_name, random_state, k_neighbours, outdir, perceptron_iterations,
+def do_experiment(dataset, dataset_name, random_state, k_neighbours, n_trees, outdir, perceptron_iterations,
                   perceptron_learning_rate,
                   k_fold):
     # Shuffle input data
@@ -100,6 +106,12 @@ def do_experiment(dataset, dataset_name, random_state, k_neighbours, outdir, per
     # Add Decision Trees classifier
     classifiers.append(tree.DecisionTreeClassifier())
     classifier_name_list.append('Decision Trees')
+
+    # Add Random Forests classifier for each setting
+    for trees in n_trees:
+        classifier = RandomForestClassifier(n_estimators=int(trees), n_jobs=-1, random_state=random_state)
+        classifiers.append(classifier)
+        classifier_name_list.append('RF (' + trees + ')')
 
     for classifier in classifiers:
         # Train the classifier
@@ -181,6 +193,7 @@ def experiments(config_file):
                   "Iris",
                   int(args.seed),
                   list(args.k_neighbours),
+                  list(args.n_trees),
                   outdir,
                   int(args.perceptron_iterations),
                   float(args.perceptron_learning_rate),
@@ -190,6 +203,7 @@ def experiments(config_file):
                   "Digits",
                   int(args.seed),
                   list(args.k_neighbours),
+                  list(args.n_trees),
                   outdir,
                   int(args.perceptron_iterations),
                   float(args.perceptron_learning_rate),
