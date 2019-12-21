@@ -10,6 +10,7 @@ from sklearn import datasets
 from sklearn import metrics
 from sklearn import neighbors
 from sklearn import tree
+from sklearn import svm
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.linear_model import Perceptron
 from sklearn.model_selection import cross_validate
@@ -64,13 +65,19 @@ def get_args_parser():
         type=int,
         help="Specify the number of folds in a `(Stratified)KFold`."
     )
+    parser.add_argument(  # TODO: control min_samples_leaf?
+        "-mx",
+        "--max_depth",
+        default=5,
+        type=int,
+        help="Max depth of Pruned Decision Tree Classifier."
+    )
 
     return parser
 
 
 def do_experiment(dataset, dataset_name, random_state, k_neighbours, n_trees, outdir, perceptron_iterations,
-                  perceptron_learning_rate,
-                  k_fold):
+                  perceptron_learning_rate, k_fold, max_depth):
     # Shuffle input data
     data, target = shuffle(dataset.data, dataset.target, random_state=random_state)
 
@@ -103,15 +110,27 @@ def do_experiment(dataset, dataset_name, random_state, k_neighbours, n_trees, ou
         Perceptron(max_iter=perceptron_iterations, eta0=perceptron_learning_rate, random_state=random_state))
     classifier_name_list.append('Perceptron')
 
-    # Add Decision Trees classifier
-    classifiers.append(tree.DecisionTreeClassifier())
-    classifier_name_list.append('Decision Trees')
+    # Add Full Decision Tree classifier
+    classifiers.append(tree.DecisionTreeClassifier(random_state=random_state))
+    classifier_name_list.append('Unpruned DT (' + max_depth + ')')
+
+    # Add Pruned/Pre-pruned Decision Tree classifier
+    classifiers.append(tree.DecisionTreeClassifier(max_depth=max_depth, random_state=random_state))
+    classifier_name_list.append('Pruned DT')
 
     # Add Random Forests classifier for each setting
     for trees in n_trees:
         classifier = RandomForestClassifier(n_estimators=int(trees), n_jobs=-1, random_state=random_state)
         classifiers.append(classifier)
         classifier_name_list.append('RF (' + trees + ')')
+
+    # Add SVC classifier
+    classifiers.append(svm.SVC(random_state=random_state))
+    classifier_name_list.append('SVC')
+
+    # Add LinearSVC classifier
+    classifiers.append(svm.SVC(random_state=random_state))
+    classifier_name_list.append('LinearSVC')
 
     for classifier in classifiers:
         # Train the classifier
@@ -197,7 +216,8 @@ def experiments(config_file):
                   outdir,
                   int(args.perceptron_iterations),
                   float(args.perceptron_learning_rate),
-                  int(args.kfold))
+                  int(args.kfold),
+                  int(args.max_depth))
 
     do_experiment(datasets.load_digits(),
                   "Digits",
@@ -207,7 +227,8 @@ def experiments(config_file):
                   outdir,
                   int(args.perceptron_iterations),
                   float(args.perceptron_learning_rate),
-                  int(args.kfold))
+                  int(args.kfold),
+                  int(args.max_depth))
 
 
 if __name__ == "__main__":
