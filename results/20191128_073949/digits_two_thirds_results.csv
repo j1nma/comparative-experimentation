@@ -1,7 +1,0 @@
-Digits/2/3     , Accuracy , Precision , Training time (s) , Testing time (s)
-k-NN (3-NN)    , 0.98     , 0.98      , 0.0043            , 0.0695
-k-NN (27-NN)   , 0.93     , 0.93      , 0.0022            , 0.0734
-k-NN (81-NN)   , 0.90     , 0.90      , 0.0018            , 0.0838
-Naive Bayes    , 0.85     , 0.85      , 0.0018            , 0.0017
-Perceptron     , 0.93     , 0.93      , 0.0355            , 0.0006
-Decision Trees , 0.84     , 0.84      , 0.0217            , 0.0014
