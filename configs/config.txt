@@ -7,8 +7,8 @@ results/
 27
 81
 --n_trees
-50
 100
+300
 --perceptron_iterations
 40
 --perceptron_learning_rate
@@ -16,6 +16,6 @@ results/
 --kfold
 5
 --max_depth
-5
+3
 --musicPath
 ./GTZANmp3_22khz/

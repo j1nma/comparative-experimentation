@@ -11,8 +11,7 @@ import numpy as np
 import pandas as pd
 import pyprind
 import scipy.stats.stats as st
-from progressbar import ProgressBar
-from sklearn import datasets, ensemble, preprocessing
+from sklearn import preprocessing
 from sklearn import metrics
 from sklearn import neighbors
 from sklearn import svm
@@ -126,6 +125,7 @@ def extract_music_data(music_path):
         chromaVector = []
         for chr in chroma:  # similar to before, we get a number of time-series
             chromaVector.append(statistics(chr))  # and we resolve that by taking statistics over the time series
+
         # Finally, this vector should be be 12 * 7 features
         data_chroma.append(np.array(chromaVector).flatten())
 
@@ -268,7 +268,10 @@ def do_experiment(dataset, dataset_name, random_state, k_neighbours, n_trees, ou
     classifiers.append(svm.SVC(random_state=random_state))
     classifier_name_list.append('LinearSVC')
 
-    for classifier in classifiers:
+    print("Training and testing " + dataset_name + " classifiers" + " (" + str(datetime.datetime.now()) + ")")
+    for indexSample, classifier in enumerate(classifiers):
+        print(classifier_name_list[indexSample] + ' ' + dataset_name + " (2/3) ...")
+
         # Train the classifier
         start_train_time = time.time()
         classifier.fit(X_train, y_train)
@@ -284,6 +287,7 @@ def do_experiment(dataset, dataset_name, random_state, k_neighbours, n_trees, ou
         precision = "{0:.2f}".format(metrics.precision_score(y_test, y_test_predicted, average="micro"))
         training_time = "{0:.4f}".format(end_train_time - start_train_time)
         testing_time = "{0:.4f}".format(end_test_time - start_test_time)
+        print(metrics.confusion_matrix(y_test, y_test_predicted))
 
         accuracy_list.append(accuracy)
         precision_list.append(precision)
