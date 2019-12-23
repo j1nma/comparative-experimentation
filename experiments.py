@@ -25,12 +25,10 @@ from sklearn.naive_bayes import GaussianNB
 from sklearn.utils import shuffle
 
 
-def extract_music_data():
-    imagePath = "./GTZANmp3_22khz/"
-
+def extract_music_data(music_path):
     # Find all songs in that folder;
     cwd = os.getcwd()
-    os.chdir(imagePath)
+    os.chdir(music_path)
     fileNames = glob.glob("*/*.mp3")
     numberOfFiles = len(fileNames)
     targetLabels = []
@@ -198,6 +196,11 @@ def get_args_parser():
         type=int,
         help="Max depth of Pruned Decision Tree Classifier."
     )
+    parser.add_argument(
+        "-mp",
+        "--musicPath",
+        default='./GTZANmp3_22khz/'
+    )
 
     return parser
 
@@ -363,7 +366,7 @@ def experiments(config_file):
     #               int(args.kfold),
     #               int(args.max_depth))
 
-    for dataset in extract_music_data():
+    for dataset in extract_music_data(args.musicPath):
         do_experiment(dataset,
                       str(dataset.name),
                       int(args.seed),

@@ -17,3 +17,5 @@ results/
 5
 --max_depth
 5
+--musicPath
+./GTZANmp3_22khz/
