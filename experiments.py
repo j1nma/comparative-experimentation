@@ -248,11 +248,11 @@ def do_experiment(dataset, dataset_name, random_state, k_neighbours, n_trees, ou
 
     # Add Full Decision Tree classifier
     classifiers.append(tree.DecisionTreeClassifier(random_state=random_state))
-    classifier_name_list.append('Unpruned DT (' + str(max_depth) + ')')
+    classifier_name_list.append('Unpruned DT')
 
     # Add Pruned/Pre-pruned Decision Tree classifier
     classifiers.append(tree.DecisionTreeClassifier(max_depth=max_depth, random_state=random_state))
-    classifier_name_list.append('Pruned DT')
+    classifier_name_list.append('Pruned DT (' + str(max_depth) + ')')
 
     # Add Random Forests classifier for each setting
     for trees in n_trees:
