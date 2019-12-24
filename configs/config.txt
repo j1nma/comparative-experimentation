@@ -7,8 +7,8 @@ results/
 27
 81
 --n_trees
+10
 100
-300
 --perceptron_iterations
 40
 --perceptron_learning_rate
