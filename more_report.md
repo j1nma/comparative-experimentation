@@ -57,21 +57,21 @@ The holdout method with 2/3 training and the rest for testing is used once, and 
 ---
 
 ### Results
-![](results/20191224_030653/data_bpm_5_folds_results.csv.png)
+![](./results/20191224_030653/data_bpm_5_folds_results.csv.png)
 
-![](results/20191224_030653/data_bpm_two_thirds_results.csv.png)
+![](./results/20191224_030653/data_bpm_two_thirds_results.csv.png)
 
-![](results/20191224_030653/data_bpm_statistics_5_folds_results.csv.png)
+![](./results/20191224_030653/data_bpm_statistics_5_folds_results.csv.png)
 
-![](results/20191224_030653/data_bpm_statistics_two_thirds_results.csv.png)
+![](./results/20191224_030653/data_bpm_statistics_two_thirds_results.csv.png)
 
-![](results/20191224_030653/data_chroma_5_folds_results.csv.png)
+![](./results/20191224_030653/data_chroma_5_folds_results.csv.png)
 
-![](results/20191224_030653/data_chroma_two_thirds_results.csv.png)
+![](./results/20191224_030653/data_chroma_two_thirds_results.csv.png)
 
-![](results/20191224_030653/data_mfcc_5_folds_results.csv.png)
+![](./results/20191224_030653/data_mfcc_5_folds_results.csv.png)
 
-![](results/20191224_030653/data_mfcc_two_thirds_results.csv.png)
+![](./results/20191224_030653/data_mfcc_two_thirds_results.csv.png)
 ---
 
 
