@@ -1,7 +1,7 @@
 from markdown import markdown
 import pdfkit
 
-input_filename = 'more_report.md'
+input_filename = 'more_exp_README.md'
 output_filename = 'more_report.pdf'
 
 with open(input_filename, 'r', encoding="utf-8") as f:
