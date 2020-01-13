@@ -1,8 +1,8 @@
 from markdown import markdown
 import pdfkit
 
-input_filename = 'report.md'
-output_filename = 'report.pdf'
+input_filename = 'more_exp_README.md'
+output_filename = 'more_report.pdf'
 
 with open(input_filename, 'r', encoding="utf-8") as f:
     fr = f.read()
