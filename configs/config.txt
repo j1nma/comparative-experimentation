@@ -1,3 +1,5 @@
+--name
+Amazon
 --seed
 1910299034
 --outdir
@@ -20,4 +22,8 @@ results/
 --max_depth
 3
 --test
-True
+False
+--dataTrain
+./data/mse-3-bb-ds-ws19-amazonreviews/amazon_review_ID.shuf.lrn.csv
+--dataTest
+./data/mse-3-bb-ds-ws19-amazonreviews/amazon_review_ID.shuf.tes.csv

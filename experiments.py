@@ -8,11 +8,14 @@ import time
 from collections import deque
 
 import librosa as librosa
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import pyprind
 import scipy.stats.stats as st
 import sklearn
+import seaborn as sns
+from IPython.core.pylabtools import figsize
 from sklearn import preprocessing, datasets
 from sklearn import metrics
 from sklearn import neighbors
@@ -32,9 +35,44 @@ from sklearn.utils import shuffle
 congressional_voting = {"dataset_name": "Congressional_Voting",
                         "label_column": 'class',
                         "label_column_yes": 'republican',
-                        "label_column_no": 'democrat',
-                        "categorical_features": np.arange(0, 32)
+                        "label_column_no": 'democrat'
                         }
+
+amazon_reviews = {"dataset_name": "Amazon_reviews",
+                  "label_column": 'Class',
+                  }
+
+
+def categorical_summarized(dataframe, x=None, y=None, hue=None, palette='Set1', verbose=True):
+    '''
+    Helper function that gives a quick summary of a given column of categorical data
+    Arguments
+    =========
+    dataframe: pandas dataframe
+    x: str. horizontal axis to plot the labels of categorical data, y would be the count
+    y: str. vertical axis to plot the labels of categorical data, x would be the count
+    hue: str. if you want to compare it another variable (usually the target variable)
+    palette: array-like. Colour of the plot
+    Returns
+    =======
+    Quick Stats of the data and also the count plot
+
+    Source:
+    https://towardsdatascience.com/a-starter-pack-to-exploratory-data-analysis-with-python-pandas-seaborn-and-scikit-learn-a77889485baf#249d
+    '''
+    if x == None:
+        column_interested = y
+    else:
+        column_interested = x
+    series = dataframe[column_interested]
+    print(series.describe())
+    print('mode: ', series.mode())
+    if verbose:
+        print('=' * 80)
+        print(series.value_counts())
+
+    sns.countplot(x=x, y=y, hue=hue, data=dataframe, palette=palette)
+    plt.show()
 
 
 def extract_music_data(music_path):
@@ -158,6 +196,11 @@ def extract_music_data(music_path):
 
 def get_args_parser():
     parser = argparse.ArgumentParser(fromfile_prefix_chars='@')
+    parser.add_argument(
+        "-n",
+        "--name",
+        default="Congress"
+    )
     parser.add_argument(
         "-s",
         "--seed",
@@ -445,17 +488,32 @@ def experiments(config_file):
     os.mkdir(outdir)
     print("Directory", outdir, "created.")
 
+    # Set data dictionary
+    data_dictionary = {}
+    if args.name == 'Congress':
+        data_dictionary = congressional_voting
+    elif args.name == 'Amazon':
+        data_dictionary = amazon_reviews
+    else:
+        raise ("Data name not found")
+
     # Read train data file
     train_data_file = os.getcwd() + "/" + args.dataTrain
-    train_df = pd.read_csv(train_data_file, na_values='unknown')
+    if args.name == 'Congress':
+        train_df = pd.read_csv(train_data_file, na_values='unknown')
+    else:
+        train_df = pd.read_csv(train_data_file)
 
     # Read train data file
     test_data_file = os.getcwd() + "/" + args.dataTest
-    test_df = pd.read_csv(test_data_file, na_values='unknown')
+    if args.name == 'Congress':
+        test_df = pd.read_csv(test_data_file, na_values='unknown')
+    else:
+        test_df = pd.read_csv(test_data_file)
 
     # Separate train label and ID
-    train_input_samples = train_df.drop([congressional_voting['label_column'], "ID"], axis=1)
-    train_target = train_df.get(congressional_voting['label_column'])
+    train_input_samples = train_df.drop([data_dictionary['label_column'], "ID"], axis=1)
+    train_target = train_df.get(data_dictionary['label_column'])
 
     # Encode features
     train_input_samples_encoded = pd.get_dummies(train_input_samples)
@@ -483,20 +541,35 @@ def experiments(config_file):
     imputed_test_df.index = test_input_samples_encoded.index
     test_input_samples_encoded = imputed_test_df
 
-    # Encode target
-    train_target = np.array(train_target.eq(congressional_voting['label_column_yes']).mul(1))
+    if args.name == 'Congress':
+        # Encode target
+        train_target = np.array(train_target.eq(congressional_voting['label_column_yes']).mul(1))
 
-    # Prediction label decoder
-    ple = preprocessing.LabelEncoder()
-    ple.fit(["republican", "democrat"])
+        # Prediction label decoder
+        ple = preprocessing.LabelEncoder()
+        ple.fit(["republican", "democrat"])
+    elif args.name == 'Amazon':
+        # Encode target
+        train_target = pd.DataFrame(train_df['Class'])
+
+        # Prediction label decoder
+        ple = preprocessing.LabelEncoder()
+        ple.fit(train_df['Class'].unique())
 
     # Create dataset from features and targets
-    train_dataset = Dataset(np.array(train_input_samples_encoded), train_target, congressional_voting['dataset_name'])
+    train_dataset = Dataset(np.array(train_input_samples_encoded), train_target, data_dictionary['dataset_name'])
+
+    if args.name == 'Congress':
+        print(train_df.info())
+        c_palette = ['tab:blue', 'tab:orange']
+        categorical_summarized(train_df, y='class', hue='el-salvador-aid', palette=c_palette)
+    else:
+        print(train_df.describe())
 
     if args.test == 'True':
         # Perform predictions on testing set to save to CV
         do_experiment(train_dataset,
-                      congressional_voting['dataset_name'],
+                      data_dictionary['dataset_name'],
                       int(args.seed),
                       list(args.k_neighbours),
                       list(args.n_trees),
@@ -510,7 +583,7 @@ def experiments(config_file):
     else:
         # Perform training and testing split among training set
         do_experiment(train_dataset,
-                      congressional_voting['dataset_name'],
+                      data_dictionary['dataset_name'],
                       int(args.seed),
                       list(args.k_neighbours),
                       list(args.n_trees),
@@ -521,33 +594,36 @@ def experiments(config_file):
                       int(args.max_depth),
                       do_k_fold=True)
 
-    # do_experiment(datasets.load_digits(),
-    #               "Digits",
-    #               int(args.seed),
-    #               list(args.k_neighbours),
-    #               list(args.n_trees),
-    #               outdir,
-    #               int(args.perceptron_iterations),
-    #               float(args.perceptron_learning_rate),
-    #               int(args.kfold),
-    #               int(args.max_depth))
+    # # do_experiment(datasets.load_digits(),
+    # #               "Digits",
+    # #               int(args.seed),
+    # #               list(args.k_neighbours),
+    # #               list(args.n_trees),
+    # #               outdir,
+    # #               int(args.perceptron_iterations),
+    # #               float(args.perceptron_learning_rate),
+    # #               int(args.kfold),
+    # #               int(args.max_depth))
+    #
+    # # for dataset in extract_music_data(args.dataPath):
+    # #     do_experiment(dataset,
+    # #                   str(dataset.name),
+    # #                   int(args.seed),
+    # #                   list(args.k_neighbours),
+    # #                   list(args.n_trees),
+    # #                   outdir,
+    # #                   int(args.perceptron_iterations),
+    # #                   float(args.perceptron_learning_rate),
+    # #                   int(args.kfold),
+    # #                   int(args.max_depth))
+    #
+    # # Gridsearch among best performing models
+    # X_train, y_train = shuffle(train_dataset.data, train_dataset.target, random_state=int(args.seed))
+    # do_gridsearch_SVC(X_train, y_train, random_state=int(args.seed))
+    # do_gridsearch_RandomForest(X_train, y_train, random_state=int(args.seed))
 
-    # for dataset in extract_music_data(args.dataPath):
-    #     do_experiment(dataset,
-    #                   str(dataset.name),
-    #                   int(args.seed),
-    #                   list(args.k_neighbours),
-    #                   list(args.n_trees),
-    #                   outdir,
-    #                   int(args.perceptron_iterations),
-    #                   float(args.perceptron_learning_rate),
-    #                   int(args.kfold),
-    #                   int(args.max_depth))
-
-    # Gridsearch among best performing models
-    X_train, y_train = shuffle(train_dataset.data, train_dataset.target, random_state=int(args.seed))
-    do_gridsearch_SVC(X_train, y_train, random_state=int(args.seed))
-    do_gridsearch_RandomForest(X_train, y_train, random_state=int(args.seed))
+    # Delete outdir directory if empty
+    os.rmdir(outdir)
 
 
 if __name__ == "__main__":
