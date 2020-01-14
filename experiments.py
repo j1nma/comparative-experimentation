@@ -43,6 +43,13 @@ amazon_reviews = {"dataset_name": "Amazon_Reviews",
                   }
 
 
+def log(logfile, s):
+    """ Log a string into a file and print it. """
+    with open(logfile, 'a', encoding='utf8') as f:
+        f.write(s + '\n')
+    print(s)
+
+
 def categorical_summarized(dataframe, x=None, y=None, hue=None, palette='Set1', verbose=True):
     '''
     Helper function that gives a quick summary of a given column of categorical data
@@ -435,12 +442,9 @@ def do_experiment(dataset, dataset_name, random_state, k_neighbours, n_trees, ou
             df.to_csv(outdir + dataset_name.lower() + '_5_folds_results.csv', index=False)
 
 
-def do_gridsearch_SVC(X_train, y_train, random_state, isAmazon=False):
+def do_gridsearch_SVC(X_train, y_train, logfile, random_state, isAmazon=False):
     # Set the parameters by cross-validation
-    print()
-    print()
-    print("Tuning SVC hyperparameters for accuracy...")
-    print()
+    log(logfile, 'Tuning SVC hyperparameters for accuracy...\n')
 
     if isAmazon:
         tuned_parameters = {
@@ -457,16 +461,15 @@ def do_gridsearch_SVC(X_train, y_train, random_state, isAmazon=False):
 
     clf.fit(X_train, y_train.values.ravel())
 
-    print()
-
     svc_std = clf.cv_results_['std_test_score'][clf.best_index_]
-    print(f'Best params: {clf.best_params_}')
-    print(f'Best score: {clf.best_score_} (+/- {svc_std})')
-    print(pd.DataFrame(clf.cv_results_).loc[:,
-          ['mean_test_score', 'std_test_score', 'rank_test_score', 'params']].sort_values(by='rank_test_score').head())
+    log(logfile, 'Best hyperparameters: {}'.format(clf.best_params_))
+    log(logfile, 'Best score: {:.4f} ± {:.4f}'.format(clf.best_score_, svc_std))
+    log(logfile, pd.DataFrame(clf.cv_results_).loc[:,
+                 ['mean_test_score', 'std_test_score', 'rank_test_score', 'params']].sort_values(
+        by='rank_test_score').head())
 
 
-def do_gridsearch_RandomForest(X_train, y_train, random_state):
+def do_gridsearch_RandomForest(X_train, y_train, logfile, random_state):
     # Set the parameters by cross-validation
     tuned_parameters = {
         'criterion': ['gini', 'entropy', 'absolute_error'],
@@ -474,21 +477,17 @@ def do_gridsearch_RandomForest(X_train, y_train, random_state):
         'max_features': ['auto', 'log2']
     }
 
-    print()
-    print()
-    print("Tuning RandomForest hyperparameters for accuracy...")
-    print()
+    log(logfile, 'Tuning RandomForest hyperparameters for accuracy...\n')
 
     clf = GridSearchCV(RandomForestClassifier(random_state=random_state), tuned_parameters, scoring='accuracy')
-    clf.fit(X_train, y_train)
-
-    print()
+    clf.fit(X_train, y_train.values.ravel())
 
     svc_std = clf.cv_results_['std_test_score'][clf.best_index_]
-    print(f'Best params: {clf.best_params_}')
-    print(f'Best score: {clf.best_score_} (+/- {svc_std})')
-    print(pd.DataFrame(clf.cv_results_).loc[:,
-          ['mean_test_score', 'std_test_score', 'rank_test_score', 'params']].sort_values(by='rank_test_score').head())
+    log(logfile, 'Best hyperparameters: {}'.format(clf.best_params_))
+    log(logfile, 'Best score: {:.4f} ± {:.4f}'.format(clf.best_score_, svc_std))
+    log(logfile, pd.DataFrame(clf.cv_results_).loc[:,
+                 ['mean_test_score', 'std_test_score', 'rank_test_score', 'params']].sort_values(
+        by='rank_test_score').head())
 
 
 def experiments(config_file):
@@ -504,6 +503,11 @@ def experiments(config_file):
     outdir = args.outdir + timestamp + '/'
     os.mkdir(outdir)
     print("Directory", outdir, "created.")
+
+    # Logging
+    logfile = outdir + 'log.txt'
+    f = open(logfile, 'w')
+    f.close()
 
     # Set data dictionary
     data_dictionary = {}
@@ -521,7 +525,7 @@ def experiments(config_file):
     else:
         train_df = pd.read_csv(train_data_file)
 
-    # Read train data file
+    # Read test data file
     test_data_file = os.getcwd() + "/" + args.dataTest
     if args.name == 'Congress':
         test_df = pd.read_csv(test_data_file, na_values='unknown')
@@ -611,36 +615,36 @@ def experiments(config_file):
     #               int(args.max_depth),
     #               do_k_fold=True)
 
-    # # do_experiment(datasets.load_digits(),
-    # #               "Digits",
-    # #               int(args.seed),
-    # #               list(args.k_neighbours),
-    # #               list(args.n_trees),
-    # #               outdir,
-    # #               int(args.perceptron_iterations),
-    # #               float(args.perceptron_learning_rate),
-    # #               int(args.kfold),
-    # #               int(args.max_depth))
-    #
-    # # for dataset in extract_music_data(args.dataPath):
-    # #     do_experiment(dataset,
-    # #                   str(dataset.name),
-    # #                   int(args.seed),
-    # #                   list(args.k_neighbours),
-    # #                   list(args.n_trees),
-    # #                   outdir,
-    # #                   int(args.perceptron_iterations),
-    # #                   float(args.perceptron_learning_rate),
-    # #                   int(args.kfold),
-    # #                   int(args.max_depth))
-    #
-    # # Gridsearch among best performing models
+    # do_experiment(datasets.load_digits(),
+    #               "Digits",
+    #               int(args.seed),
+    #               list(args.k_neighbours),
+    #               list(args.n_trees),
+    #               outdir,
+    #               int(args.perceptron_iterations),
+    #               float(args.perceptron_learning_rate),
+    #               int(args.kfold),
+    #               int(args.max_depth))
+
+    # for dataset in extract_music_data(args.dataPath):
+    #     do_experiment(dataset,
+    #                   str(dataset.name),
+    #                   int(args.seed),
+    #                   list(args.k_neighbours),
+    #                   list(args.n_trees),
+    #                   outdir,
+    #                   int(args.perceptron_iterations),
+    #                   float(args.perceptron_learning_rate),
+    #                   int(args.kfold),
+    #                   int(args.max_depth))
+
+    # Gridsearch among best performing models
     X_train, y_train = shuffle(train_dataset.data, train_dataset.target, random_state=int(args.seed))
     if args.name == 'Congress':
-        do_gridsearch_SVC(X_train, y_train, random_state=int(args.seed), isAmazon=False)
+        do_gridsearch_SVC(X_train, y_train, logfile, random_state=int(args.seed), isAmazon=False)
     else:
-        do_gridsearch_SVC(X_train, y_train, random_state=int(args.seed), isAmazon=True)
-    # do_gridsearch_RandomForest(X_train, y_train, random_state=int(args.seed))
+        # do_gridsearch_SVC(X_train, y_train, logfile, random_state=int(args.seed), isAmazon=True)
+        do_gridsearch_RandomForest(X_train, y_train, logfile, random_state=int(args.seed))
 
     # Try to delete outdir directory if empty
     try:
