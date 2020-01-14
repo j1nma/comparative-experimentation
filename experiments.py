@@ -459,17 +459,21 @@ def do_gridsearch_SVC(X_train, y_train, logfile, random_state, isAmazon=False):
         }
         clf = GridSearchCV(SVC(random_state=random_state), tuned_parameters, scoring='accuracy')
 
-    clf.fit(X_train, y_train.values.ravel())
+    if isAmazon:
+        clf.fit(X_train, y_train.values.ravel())
+    else:
+        clf.fit(X_train, y_train)
 
     svc_std = clf.cv_results_['std_test_score'][clf.best_index_]
     log(logfile, 'Best hyperparameters: {}'.format(clf.best_params_))
     log(logfile, 'Best score: {:.4f} ± {:.4f}'.format(clf.best_score_, svc_std))
-    log(logfile, pd.DataFrame(clf.cv_results_).loc[:,
+    results_df = pd.DataFrame(clf.cv_results_).loc[:,
                  ['mean_test_score', 'std_test_score', 'rank_test_score', 'params']].sort_values(
-        by='rank_test_score').head())
+        by='rank_test_score').head()
+    log(logfile, results_df.to_string())
 
 
-def do_gridsearch_RandomForest(X_train, y_train, logfile, random_state):
+def do_gridsearch_RandomForest(X_train, y_train, logfile, random_state, isAmazon=False):
     # Set the parameters by cross-validation
     tuned_parameters = {
         'criterion': ['gini', 'entropy', 'absolute_error'],
@@ -480,14 +484,19 @@ def do_gridsearch_RandomForest(X_train, y_train, logfile, random_state):
     log(logfile, 'Tuning RandomForest hyperparameters for accuracy...\n')
 
     clf = GridSearchCV(RandomForestClassifier(random_state=random_state), tuned_parameters, scoring='accuracy')
-    clf.fit(X_train, y_train.values.ravel())
+
+    if isAmazon:
+        clf.fit(X_train, y_train.values.ravel())
+    else:
+        clf.fit(X_train, y_train)
 
     svc_std = clf.cv_results_['std_test_score'][clf.best_index_]
     log(logfile, 'Best hyperparameters: {}'.format(clf.best_params_))
     log(logfile, 'Best score: {:.4f} ± {:.4f}'.format(clf.best_score_, svc_std))
-    log(logfile, pd.DataFrame(clf.cv_results_).loc[:,
+    results_df = pd.DataFrame(clf.cv_results_).loc[:,
                  ['mean_test_score', 'std_test_score', 'rank_test_score', 'params']].sort_values(
-        by='rank_test_score').head())
+        by='rank_test_score').head()
+    log(logfile, results_df.to_string())
 
 
 def experiments(config_file):
@@ -503,11 +512,6 @@ def experiments(config_file):
     outdir = args.outdir + timestamp + '/'
     os.mkdir(outdir)
     print("Directory", outdir, "created.")
-
-    # Logging
-    logfile = outdir + 'log.txt'
-    f = open(logfile, 'w')
-    f.close()
 
     # Set data dictionary
     data_dictionary = {}
@@ -580,15 +584,16 @@ def experiments(config_file):
     # Create dataset from features and targets
     train_dataset = Dataset(np.array(train_input_samples_encoded), train_target, data_dictionary['dataset_name'])
 
-    if args.name == 'Congress':
-        print(train_df.info())
-        c_palette = ['tab:blue', 'tab:orange']
-        categorical_summarized(train_df, y='class', hue='el-salvador-aid', palette=c_palette)
+    # Dataset analysis
+    # if args.name == 'Congress':
+    # print(train_df.info())
+    # c_palette = ['tab:blue', 'tab:orange']
+    # categorical_summarized(train_df, y='class', hue='el-salvador-aid', palette=c_palette)
     # else:
     # print(train_df.describe())
 
     # if args.test == 'True':
-    #     Perform predictions on testing set to save to CV
+    # Perform predictions on testing set to save to CV
     # do_experiment(train_dataset,
     #               data_dictionary['dataset_name'],
     #               int(args.seed),
@@ -639,12 +644,17 @@ def experiments(config_file):
     #                   int(args.max_depth))
 
     # Gridsearch among best performing models
+    # Logging
+    logfile = outdir + 'log.txt'
+    f = open(logfile, 'w')
+    f.close()
     X_train, y_train = shuffle(train_dataset.data, train_dataset.target, random_state=int(args.seed))
     if args.name == 'Congress':
-        do_gridsearch_SVC(X_train, y_train, logfile, random_state=int(args.seed), isAmazon=False)
+        # do_gridsearch_SVC(X_train, y_train, logfile, random_state=int(args.seed), isAmazon=False)
+        do_gridsearch_RandomForest(X_train, y_train, logfile, random_state=int(args.seed), isAmazon=False)
     else:
-        # do_gridsearch_SVC(X_train, y_train, logfile, random_state=int(args.seed), isAmazon=True)
-        do_gridsearch_RandomForest(X_train, y_train, logfile, random_state=int(args.seed))
+        do_gridsearch_SVC(X_train, y_train, logfile, random_state=int(args.seed), isAmazon=True)
+        do_gridsearch_RandomForest(X_train, y_train, logfile, random_state=int(args.seed), isAmazon=True)
 
     # Try to delete outdir directory if empty
     try:
