@@ -38,7 +38,7 @@ congressional_voting = {"dataset_name": "Congressional_Voting",
                         "label_column_no": 'democrat'
                         }
 
-amazon_reviews = {"dataset_name": "Amazon_reviews",
+amazon_reviews = {"dataset_name": "Amazon_Reviews",
                   "label_column": 'Class',
                   }
 
@@ -342,7 +342,10 @@ def do_experiment(dataset, dataset_name, random_state, k_neighbours, n_trees, ou
     classifier_name_list.append('SVC')
 
     # Add LinearSVC classifier
-    classifiers.append(svm.SVC(random_state=random_state, C=0.6, gamma='scale', kernel='linear', shrinking=True))
+    if dataset_name == 'Congressional_Voting':
+        classifiers.append(svm.SVC(random_state=random_state, C=0.6, gamma='scale', kernel='linear', shrinking=True))
+    else:
+        classifiers.append(svm.LinearSVC(random_state=random_state))
     classifier_name_list.append('LinearSVC')
 
     print("Training and testing " + dataset_name + " classifiers" + " (" + str(datetime.datetime.now()) + ")")
@@ -374,7 +377,8 @@ def do_experiment(dataset, dataset_name, random_state, k_neighbours, n_trees, ou
             precision = "{0:.2f}".format(metrics.precision_score(y_test, y_test_predicted, average="micro"))
             training_time = "{0:.4f}".format(end_train_time - start_train_time)
             testing_time = "{0:.4f}".format(end_test_time - start_test_time)
-            print(metrics.confusion_matrix(y_test, y_test_predicted))
+            if dataset_name == 'Congressional_Voting':
+                print(metrics.confusion_matrix(y_test, y_test_predicted))
 
             accuracy_list.append(accuracy)
             precision_list.append(precision)
@@ -402,7 +406,10 @@ def do_experiment(dataset, dataset_name, random_state, k_neighbours, n_trees, ou
             scoring = ['accuracy', 'precision_micro']
 
             for classifier in classifiers:
-                scores = cross_validate(classifier, data, target, scoring=scoring, cv=k_fold)
+                if dataset_name == 'Congressional_Voting':
+                    scores = cross_validate(classifier, data, target, scoring=scoring, cv=k_fold)
+                else:
+                    scores = cross_validate(classifier, data, target.values.ravel(), scoring=scoring, cv=k_fold)
 
                 accuracy_list.append(
                     "{:.4f} ± {:.4f}".format(np.mean(scores['test_accuracy'], axis=0),
@@ -424,21 +431,27 @@ def do_experiment(dataset, dataset_name, random_state, k_neighbours, n_trees, ou
             df.to_csv(outdir + dataset_name.lower() + '_5_folds_results.csv', index=False)
 
 
-def do_gridsearch_SVC(X_train, y_train, random_state):
+def do_gridsearch_SVC(X_train, y_train, random_state, isAmazon=False):
     # Set the parameters by cross-validation
-    tuned_parameters = {
-        'kernel': ['linear', 'rbf', 'sigmoid'],
-        'gamma': ['scale', 'auto'],
-        'C': np.arange(0.1, 1.0, 0.1)
-    }
-
     print()
     print()
     print("Tuning SVC hyperparameters for accuracy...")
     print()
 
-    clf = GridSearchCV(SVC(random_state=random_state), tuned_parameters, scoring='accuracy')
-    clf.fit(X_train, y_train)
+    if isAmazon:
+        tuned_parameters = {
+            'C': [5, 10, 15]
+        }
+        clf = GridSearchCV(LinearSVC(random_state=random_state, max_iter=10000), tuned_parameters, scoring='accuracy')
+    else:
+        tuned_parameters = {
+            'kernel': ['linear', 'rbf', 'sigmoid'],
+            'gamma': ['scale', 'auto'],
+            'C': np.arange(0.1, 1.0, 0.1)
+        }
+        clf = GridSearchCV(SVC(random_state=random_state), tuned_parameters, scoring='accuracy')
+
+    clf.fit(X_train, y_train.values.ravel())
 
     print()
 
@@ -563,36 +576,36 @@ def experiments(config_file):
         print(train_df.info())
         c_palette = ['tab:blue', 'tab:orange']
         categorical_summarized(train_df, y='class', hue='el-salvador-aid', palette=c_palette)
-    else:
-        print(train_df.describe())
+    # else:
+    # print(train_df.describe())
 
-    if args.test == 'True':
-        # Perform predictions on testing set to save to CV
-        do_experiment(train_dataset,
-                      data_dictionary['dataset_name'],
-                      int(args.seed),
-                      list(args.k_neighbours),
-                      list(args.n_trees),
-                      outdir,
-                      int(args.perceptron_iterations),
-                      float(args.perceptron_learning_rate),
-                      int(args.kfold),
-                      int(args.max_depth),
-                      test_input_samples_encoded,
-                      ple)
-    else:
-        # Perform training and testing split among training set
-        do_experiment(train_dataset,
-                      data_dictionary['dataset_name'],
-                      int(args.seed),
-                      list(args.k_neighbours),
-                      list(args.n_trees),
-                      outdir,
-                      int(args.perceptron_iterations),
-                      float(args.perceptron_learning_rate),
-                      int(args.kfold),
-                      int(args.max_depth),
-                      do_k_fold=True)
+    # if args.test == 'True':
+    #     Perform predictions on testing set to save to CV
+    # do_experiment(train_dataset,
+    #               data_dictionary['dataset_name'],
+    #               int(args.seed),
+    #               list(args.k_neighbours),
+    #               list(args.n_trees),
+    #               outdir,
+    #               int(args.perceptron_iterations),
+    #               float(args.perceptron_learning_rate),
+    #               int(args.kfold),
+    #               int(args.max_depth),
+    #               test_input_samples_encoded,
+    #               ple)
+    # else:
+    # Perform training and testing split among training set
+    # do_experiment(train_dataset,
+    #               data_dictionary['dataset_name'],
+    #               int(args.seed),
+    #               list(args.k_neighbours),
+    #               list(args.n_trees),
+    #               outdir,
+    #               int(args.perceptron_iterations),
+    #               float(args.perceptron_learning_rate),
+    #               int(args.kfold),
+    #               int(args.max_depth),
+    #               do_k_fold=True)
 
     # # do_experiment(datasets.load_digits(),
     # #               "Digits",
@@ -618,12 +631,18 @@ def experiments(config_file):
     # #                   int(args.max_depth))
     #
     # # Gridsearch among best performing models
-    # X_train, y_train = shuffle(train_dataset.data, train_dataset.target, random_state=int(args.seed))
-    # do_gridsearch_SVC(X_train, y_train, random_state=int(args.seed))
+    X_train, y_train = shuffle(train_dataset.data, train_dataset.target, random_state=int(args.seed))
+    if args.name == 'Congress':
+        do_gridsearch_SVC(X_train, y_train, random_state=int(args.seed), isAmazon=False)
+    else:
+        do_gridsearch_SVC(X_train, y_train, random_state=int(args.seed), isAmazon=True)
     # do_gridsearch_RandomForest(X_train, y_train, random_state=int(args.seed))
 
-    # Delete outdir directory if empty
-    os.rmdir(outdir)
+    # Try to delete outdir directory if empty
+    try:
+        os.rmdir(outdir)
+    except:
+        pass
 
 
 if __name__ == "__main__":
