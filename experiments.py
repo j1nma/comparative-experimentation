@@ -1,4 +1,5 @@
 import argparse
+import csv
 import datetime
 import glob
 import os
@@ -11,21 +12,33 @@ import numpy as np
 import pandas as pd
 import pyprind
 import scipy.stats.stats as st
-from sklearn import preprocessing
+import sklearn
+from sklearn import preprocessing, datasets
 from sklearn import metrics
 from sklearn import neighbors
 from sklearn import svm
 from sklearn import tree
 from sklearn.ensemble import RandomForestClassifier
+from sklearn.impute import KNNImputer
 from sklearn.linear_model import Perceptron
-from sklearn.model_selection import cross_validate
+from sklearn.model_selection import cross_validate, GridSearchCV
 from sklearn.model_selection import train_test_split
 from sklearn.naive_bayes import GaussianNB
+from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import StandardScaler
+from sklearn.svm import LinearSVC, SVC
 from sklearn.utils import shuffle
+
+congressional_voting = {"dataset_name": "Congressional_Voting",
+                        "label_column": 'class',
+                        "label_column_yes": 'republican',
+                        "label_column_no": 'democrat',
+                        "categorical_features": np.arange(0, 32)
+                        }
 
 
 def extract_music_data(music_path):
-    # Find all songs in that folder;
+    # Find all songs in that folder
     cwd = os.getcwd()
     os.chdir(music_path)
     fileNames = glob.glob("*/*.mp3")
@@ -199,7 +212,22 @@ def get_args_parser():
     parser.add_argument(
         "-mp",
         "--musicPath",
-        default='./GTZANmp3_22khz/'
+        default='./data/GTZANmp3_22khz/'
+    )
+    parser.add_argument(
+        "-dt",
+        "--dataTrain",
+        default='./data/mse-3-bb-ds-ws19-congressional-voting/CongressionalVotingID.shuf.train.csv'
+    )
+    parser.add_argument(
+        "-ds",
+        "--dataTest",
+        default='./data/mse-3-bb-ds-ws19-congressional-voting/CongressionalVotingID.shuf.test.csv'
+    )
+    parser.add_argument(
+        "-t",
+        "--test",
+        default='True'
     )
 
     return parser
@@ -213,14 +241,19 @@ class Dataset:
 
 
 def do_experiment(dataset, dataset_name, random_state, k_neighbours, n_trees, outdir, perceptron_iterations,
-                  perceptron_learning_rate, k_fold, max_depth):
+                  perceptron_learning_rate, k_fold, max_depth, test_features=None, label_decoder=None,
+                  do_k_fold=False, test_size=0.33):
     # Shuffle input data
     data, target = shuffle(dataset.data, dataset.target, random_state=random_state)
 
-    # Prepare a train/test set split
-    # Split 2/3 into training set and 1/3 test set
-    # Use the random number generator state +1; this will influence how the data is split
-    X_train, X_test, y_train, y_test = train_test_split(data, target, test_size=0.33, random_state=(random_state + 1))
+    if test_features is not None:
+        X_train, X_test, y_train = data, test_features, target
+    else:
+        # Prepare a train/test set split
+        # Split 2/3 into training set and 1/3 test set
+        # Use the random number generator state +1; this will influence how the data is split
+        X_train, X_test, y_train, y_test = train_test_split(data, target, test_size=test_size,
+                                                            random_state=(random_state + 1))
 
     # Initialize result lists
     classifier_name_list = []
@@ -256,7 +289,8 @@ def do_experiment(dataset, dataset_name, random_state, k_neighbours, n_trees, ou
 
     # Add Random Forests classifier for each setting
     for trees in n_trees:
-        classifier = RandomForestClassifier(n_estimators=int(trees), n_jobs=-1, random_state=random_state)
+        classifier = RandomForestClassifier(n_estimators=int(trees), n_jobs=-1, random_state=random_state,
+                                            criterion='entropy', max_features='log2')
         classifiers.append(classifier)
         classifier_name_list.append('RF (' + str(trees) + ')')
 
@@ -265,7 +299,7 @@ def do_experiment(dataset, dataset_name, random_state, k_neighbours, n_trees, ou
     classifier_name_list.append('SVC')
 
     # Add LinearSVC classifier
-    classifiers.append(svm.SVC(random_state=random_state))
+    classifiers.append(svm.SVC(random_state=random_state, C=0.6, gamma='scale', kernel='linear', shrinking=True))
     classifier_name_list.append('LinearSVC')
 
     print("Training and testing " + dataset_name + " classifiers" + " (" + str(datetime.datetime.now()) + ")")
@@ -279,59 +313,122 @@ def do_experiment(dataset, dataset_name, random_state, k_neighbours, n_trees, ou
 
         # Predict the test set on trained classifier
         start_test_time = time.time()
-        y_test_predicted = classifier.predict(X_test)
+        if test_features is not None:
+            y_test_predicted = classifier.predict(X_test.iloc[:, 1:])
+        else:
+            y_test_predicted = classifier.predict(X_test)
         end_test_time = time.time()
 
-        # Compute metrics
-        accuracy = "{0:.2f}".format(metrics.accuracy_score(y_test, y_test_predicted))
-        precision = "{0:.2f}".format(metrics.precision_score(y_test, y_test_predicted, average="micro"))
-        training_time = "{0:.4f}".format(end_train_time - start_train_time)
-        testing_time = "{0:.4f}".format(end_test_time - start_test_time)
-        print(metrics.confusion_matrix(y_test, y_test_predicted))
+        if test_features is not None:
+            output = pd.DataFrame(
+                data={"ID": X_test["ID"].astype(int), "\"class\"": label_decoder.inverse_transform(y_test_predicted)})
+            output.to_csv(path_or_buf=outdir + classifier_name_list[indexSample].replace(' ', '_') + ".csv",
+                          index=False, quoting=3,
+                          sep=',')
+        else:
+            # Compute metrics
+            accuracy = "{0:.4f}".format(metrics.accuracy_score(y_test, y_test_predicted))
+            precision = "{0:.2f}".format(metrics.precision_score(y_test, y_test_predicted, average="micro"))
+            training_time = "{0:.4f}".format(end_train_time - start_train_time)
+            testing_time = "{0:.4f}".format(end_test_time - start_test_time)
+            print(metrics.confusion_matrix(y_test, y_test_predicted))
 
-        accuracy_list.append(accuracy)
-        precision_list.append(precision)
-        training_time_list.append(training_time)
-        testing_time_list.append(testing_time)
+            accuracy_list.append(accuracy)
+            precision_list.append(precision)
+            training_time_list.append(training_time)
+            testing_time_list.append(testing_time)
 
-    df = pd.DataFrame()
-    df[dataset_name + '/2/3'] = np.array(classifier_name_list)
-    df['Accuracy'] = np.array(accuracy_list)
-    df['Precision'] = np.array(precision_list)
-    df['Training time (s)'] = np.array(training_time_list)
-    df['Testing time (s)'] = np.array(testing_time_list)
+    if test_features is None:
+        df = pd.DataFrame()
+        df[dataset_name + '/2/3'] = np.array(classifier_name_list)
+        df['Accuracy'] = np.array(accuracy_list)
+        df['Precision'] = np.array(precision_list)
+        df['Training time (s)'] = np.array(training_time_list)
+        df['Testing time (s)'] = np.array(testing_time_list)
 
-    df.to_csv(outdir + dataset_name.lower() + '_two_thirds_results.csv', index=False)
+        df.to_csv(outdir + dataset_name.lower() + '_two_thirds_results.csv', index=False)
 
-    # 5 Folds Split #
-    # Re-initialize result lists
-    accuracy_list = []
-    precision_list = []
-    training_time_list = []
-    testing_time_list = []
+        if do_k_fold:
+            # 5 Folds Split #
+            # Re-initialize result lists
+            accuracy_list = []
+            precision_list = []
+            training_time_list = []
+            testing_time_list = []
 
-    scoring = ['accuracy', 'precision_micro']
+            scoring = ['accuracy', 'precision_micro']
 
-    for classifier in classifiers:
-        scores = cross_validate(classifier, data, target, scoring=scoring, cv=k_fold)
+            for classifier in classifiers:
+                scores = cross_validate(classifier, data, target, scoring=scoring, cv=k_fold)
 
-        accuracy_list.append(
-            "{:.2f} ± {:.2f}".format(np.mean(scores['test_accuracy'], axis=0), np.std(scores['test_accuracy'], axis=0)))
-        precision_list.append("{:.2f} ± {:.2f}".format(np.mean(scores['test_precision_micro'], axis=0),
-                                                       np.std(scores['test_precision_micro'], axis=0)))
-        training_time_list.append("{:.4f} ± {:.4f}".format(np.mean(scores['fit_time'], axis=0),
-                                                           np.std(scores['fit_time'], axis=0)))
-        testing_time_list.append("{:.4f} ± {:.4f}".format(np.mean(scores['score_time'], axis=0),
-                                                          np.std(scores['score_time'], axis=0)))
+                accuracy_list.append(
+                    "{:.4f} ± {:.4f}".format(np.mean(scores['test_accuracy'], axis=0),
+                                             np.std(scores['test_accuracy'], axis=0)))
+                precision_list.append("{:.2f} ± {:.2f}".format(np.mean(scores['test_precision_micro'], axis=0),
+                                                               np.std(scores['test_precision_micro'], axis=0)))
+                training_time_list.append("{:.4f} ± {:.4f}".format(np.mean(scores['fit_time'], axis=0),
+                                                                   np.std(scores['fit_time'], axis=0)))
+                testing_time_list.append("{:.4f} ± {:.4f}".format(np.mean(scores['score_time'], axis=0),
+                                                                  np.std(scores['score_time'], axis=0)))
 
-    df = pd.DataFrame()
-    df[dataset_name + '/' + str(k_fold) + '-folds'] = np.array(classifier_name_list)
-    df['Accuracy'] = accuracy_list
-    df['Precision'] = precision_list
-    df['Training time (s)'] = training_time_list
-    df['Testing time (s)'] = testing_time_list
+            df = pd.DataFrame()
+            df[dataset_name + '/' + str(k_fold) + '-folds'] = np.array(classifier_name_list)
+            df['Accuracy'] = accuracy_list
+            df['Precision'] = precision_list
+            df['Training time (s)'] = training_time_list
+            df['Testing time (s)'] = testing_time_list
 
-    df.to_csv(outdir + dataset_name.lower() + '_5_folds_results.csv', index=False)
+            df.to_csv(outdir + dataset_name.lower() + '_5_folds_results.csv', index=False)
+
+
+def do_gridsearch_SVC(X_train, y_train, random_state):
+    # Set the parameters by cross-validation
+    tuned_parameters = {
+        'kernel': ['linear', 'rbf', 'sigmoid'],
+        'gamma': ['scale', 'auto'],
+        'C': np.arange(0.1, 1.0, 0.1)
+    }
+
+    print()
+    print()
+    print("Tuning SVC hyperparameters for accuracy...")
+    print()
+
+    clf = GridSearchCV(SVC(random_state=random_state), tuned_parameters, scoring='accuracy')
+    clf.fit(X_train, y_train)
+
+    print()
+
+    svc_std = clf.cv_results_['std_test_score'][clf.best_index_]
+    print(f'Best params: {clf.best_params_}')
+    print(f'Best score: {clf.best_score_} (+/- {svc_std})')
+    print(pd.DataFrame(clf.cv_results_).loc[:,
+          ['mean_test_score', 'std_test_score', 'rank_test_score', 'params']].sort_values(by='rank_test_score').head())
+
+
+def do_gridsearch_RandomForest(X_train, y_train, random_state):
+    # Set the parameters by cross-validation
+    tuned_parameters = {
+        'criterion': ['gini', 'entropy', 'absolute_error'],
+        'n_estimators': np.arange(10, 100, 10),
+        'max_features': ['auto', 'log2']
+    }
+
+    print()
+    print()
+    print("Tuning RandomForest hyperparameters for accuracy...")
+    print()
+
+    clf = GridSearchCV(RandomForestClassifier(random_state=random_state), tuned_parameters, scoring='accuracy')
+    clf.fit(X_train, y_train)
+
+    print()
+
+    svc_std = clf.cv_results_['std_test_score'][clf.best_index_]
+    print(f'Best params: {clf.best_params_}')
+    print(f'Best score: {clf.best_score_} (+/- {svc_std})')
+    print(pd.DataFrame(clf.cv_results_).loc[:,
+          ['mean_test_score', 'std_test_score', 'rank_test_score', 'params']].sort_values(by='rank_test_score').head())
 
 
 def experiments(config_file):
@@ -348,17 +445,82 @@ def experiments(config_file):
     os.mkdir(outdir)
     print("Directory", outdir, "created.")
 
-    # do_experiment(datasets.load_iris(),
-    #               "Iris",
-    #               int(args.seed),
-    #               list(args.k_neighbours),
-    #               list(args.n_trees),
-    #               outdir,
-    #               int(args.perceptron_iterations),
-    #               float(args.perceptron_learning_rate),
-    #               int(args.kfold),
-    #               int(args.max_depth))
-    #
+    # Read train data file
+    train_data_file = os.getcwd() + "/" + args.dataTrain
+    train_df = pd.read_csv(train_data_file, na_values='unknown')
+
+    # Read train data file
+    test_data_file = os.getcwd() + "/" + args.dataTest
+    test_df = pd.read_csv(test_data_file, na_values='unknown')
+
+    # Separate train label and ID
+    train_input_samples = train_df.drop([congressional_voting['label_column'], "ID"], axis=1)
+    train_target = train_df.get(congressional_voting['label_column'])
+
+    # Encode features
+    train_input_samples_encoded = pd.get_dummies(train_input_samples)
+    test_input_samples_encoded = pd.get_dummies(test_df)
+
+    # Retain NaN values for KNNImputer
+    for col in train_input_samples.head():
+        train_input_samples_encoded.loc[
+            train_input_samples[col].isnull(), train_input_samples_encoded.columns.str.startswith(col + "_")] = np.nan
+    for col in test_df.head():
+        test_input_samples_encoded.loc[
+            test_df[col].isnull(), test_input_samples_encoded.columns.str.startswith(col + "_")] = np.nan
+
+    # KNN train data imputation
+    imp = KNNImputer(n_neighbors=10)
+    imputed_train_df = pd.DataFrame(imp.fit_transform(train_input_samples_encoded))
+    imputed_train_df.columns = train_input_samples_encoded.columns
+    imputed_train_df.index = train_input_samples_encoded.index
+    train_input_samples_encoded = imputed_train_df
+
+    # KNN test data imputation
+    imp = KNNImputer(n_neighbors=10)
+    imputed_test_df = pd.DataFrame(imp.fit_transform(test_input_samples_encoded))
+    imputed_test_df.columns = test_input_samples_encoded.columns
+    imputed_test_df.index = test_input_samples_encoded.index
+    test_input_samples_encoded = imputed_test_df
+
+    # Encode target
+    train_target = np.array(train_target.eq(congressional_voting['label_column_yes']).mul(1))
+
+    # Prediction label decoder
+    ple = preprocessing.LabelEncoder()
+    ple.fit(["republican", "democrat"])
+
+    # Create dataset from features and targets
+    train_dataset = Dataset(np.array(train_input_samples_encoded), train_target, congressional_voting['dataset_name'])
+
+    if args.test == 'True':
+        # Perform predictions on testing set to save to CV
+        do_experiment(train_dataset,
+                      congressional_voting['dataset_name'],
+                      int(args.seed),
+                      list(args.k_neighbours),
+                      list(args.n_trees),
+                      outdir,
+                      int(args.perceptron_iterations),
+                      float(args.perceptron_learning_rate),
+                      int(args.kfold),
+                      int(args.max_depth),
+                      test_input_samples_encoded,
+                      ple)
+    else:
+        # Perform training and testing split among training set
+        do_experiment(train_dataset,
+                      congressional_voting['dataset_name'],
+                      int(args.seed),
+                      list(args.k_neighbours),
+                      list(args.n_trees),
+                      outdir,
+                      int(args.perceptron_iterations),
+                      float(args.perceptron_learning_rate),
+                      int(args.kfold),
+                      int(args.max_depth),
+                      do_k_fold=True)
+
     # do_experiment(datasets.load_digits(),
     #               "Digits",
     #               int(args.seed),
@@ -370,17 +532,22 @@ def experiments(config_file):
     #               int(args.kfold),
     #               int(args.max_depth))
 
-    for dataset in extract_music_data(args.musicPath):
-        do_experiment(dataset,
-                      str(dataset.name),
-                      int(args.seed),
-                      list(args.k_neighbours),
-                      list(args.n_trees),
-                      outdir,
-                      int(args.perceptron_iterations),
-                      float(args.perceptron_learning_rate),
-                      int(args.kfold),
-                      int(args.max_depth))
+    # for dataset in extract_music_data(args.dataPath):
+    #     do_experiment(dataset,
+    #                   str(dataset.name),
+    #                   int(args.seed),
+    #                   list(args.k_neighbours),
+    #                   list(args.n_trees),
+    #                   outdir,
+    #                   int(args.perceptron_iterations),
+    #                   float(args.perceptron_learning_rate),
+    #                   int(args.kfold),
+    #                   int(args.max_depth))
+
+    # Gridsearch among best performing models
+    X_train, y_train = shuffle(train_dataset.data, train_dataset.target, random_state=int(args.seed))
+    do_gridsearch_SVC(X_train, y_train, random_state=int(args.seed))
+    do_gridsearch_RandomForest(X_train, y_train, random_state=int(args.seed))
 
 
 if __name__ == "__main__":
