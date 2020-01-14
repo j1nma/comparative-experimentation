@@ -199,7 +199,8 @@ def get_args_parser():
     parser.add_argument(
         "-n",
         "--name",
-        default="Congress"
+        default="Congress",
+        help="Name of the Kaggle competition to run: Congress, Amazon."
     )
     parser.add_argument(
         "-s",
@@ -260,17 +261,20 @@ def get_args_parser():
     parser.add_argument(
         "-dt",
         "--dataTrain",
-        default='./data/mse-3-bb-ds-ws19-congressional-voting/CongressionalVotingID.shuf.train.csv'
+        default='./data/mse-3-bb-ds-ws19-congressional-voting/CongressionalVotingID.shuf.train.csv',
+        help="Kaggle competition training CSV file."
     )
     parser.add_argument(
         "-ds",
         "--dataTest",
-        default='./data/mse-3-bb-ds-ws19-congressional-voting/CongressionalVotingID.shuf.test.csv'
+        default='./data/mse-3-bb-ds-ws19-congressional-voting/CongressionalVotingID.shuf.test.csv',
+        help="Kaggle competition testing CSV file."
     )
     parser.add_argument(
         "-t",
         "--test",
-        default='True'
+        default='True',
+        help="Whether to test for Kaggle competition."
     )
 
     return parser
