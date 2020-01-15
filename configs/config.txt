@@ -1,5 +1,5 @@
 --name
-Congress
+Amazon
 --seed
 1910299034
 --outdir
@@ -21,8 +21,8 @@ results/
 --max_depth
 3
 --test
-False
+True
 --dataTrain
-./data/mse-3-bb-ds-ws19-congressional-voting/CongressionalVotingID.shuf.train.csv
+./data/mse-3-bb-ds-ws19-amazonreviews/amazon_review_ID.shuf.lrn.csv
 --dataTest
-./data/mse-3-bb-ds-ws19-congressional-voting/CongressionalVotingID.shuf.test.csv
+./data/mse-3-bb-ds-ws19-amazonreviews/amazon_review_ID.shuf.tes.csv
