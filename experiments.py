@@ -356,12 +356,15 @@ def do_experiment(dataset, dataset_name, random_state, k_neighbours, n_trees, ou
     if dataset_name == 'Congressional_Voting':
         classifiers.append(svm.SVC(random_state=random_state, C=0.6, gamma='scale', kernel='linear', shrinking=True))
     else:
-        classifiers.append(svm.LinearSVC(random_state=random_state))
+        classifiers.append(svm.LinearSVC(random_state=random_state, max_iter=10000))
     classifier_name_list.append('LinearSVC')
 
     print("Training and testing " + dataset_name + " classifiers" + " (" + str(datetime.datetime.now()) + ")")
     for indexSample, classifier in enumerate(classifiers):
-        print(classifier_name_list[indexSample] + ' ' + dataset_name + " (2/3) ...")
+        if test_features is not None:
+            print(classifier_name_list[indexSample] + ' ' + dataset_name + " entire set ...")
+        else:
+            print(classifier_name_list[indexSample] + ' ' + dataset_name + " (2/3) ...")
 
         # Train the classifier
         start_train_time = time.time()
@@ -499,6 +502,28 @@ def do_gridsearch_RandomForest(X_train, y_train, logfile, random_state, isAmazon
     log(logfile, results_df.to_string())
 
 
+def do_gridsearch_Perceptron(X_train, y_train, logfile, random_state, isAmazon=False):
+    # Set the parameters by cross-validation
+    tuned_parameters = {
+        'max_iter': [40, 100, 1000],
+        'eta0': [0.01, 0.1, 1.0]
+    }
+
+    log(logfile, 'Tuning Perceptron hyperparameters for accuracy...\n')
+
+    clf = GridSearchCV(Perceptron(random_state=random_state), tuned_parameters, scoring='accuracy')
+
+    clf.fit(X_train, y_train)
+
+    svc_std = clf.cv_results_['std_test_score'][clf.best_index_]
+    log(logfile, 'Best hyperparameters: {}'.format(clf.best_params_))
+    log(logfile, 'Best score: {:.4f} ± {:.4f}'.format(clf.best_score_, svc_std))
+    results_df = pd.DataFrame(clf.cv_results_).loc[:,
+                 ['mean_test_score', 'std_test_score', 'rank_test_score', 'params']].sort_values(
+        by='rank_test_score').head()
+    log(logfile, results_df.to_string())
+
+
 def experiments(config_file):
     args = get_args_parser().parse_args(['@' + config_file])
 
@@ -544,27 +569,29 @@ def experiments(config_file):
     train_input_samples_encoded = pd.get_dummies(train_input_samples)
     test_input_samples_encoded = pd.get_dummies(test_df)
 
-    # Retain NaN values for KNNImputer
-    for col in train_input_samples.head():
-        train_input_samples_encoded.loc[
-            train_input_samples[col].isnull(), train_input_samples_encoded.columns.str.startswith(col + "_")] = np.nan
-    for col in test_df.head():
-        test_input_samples_encoded.loc[
-            test_df[col].isnull(), test_input_samples_encoded.columns.str.startswith(col + "_")] = np.nan
+    if args.name == 'Congress':
+        # Retain NaN values for KNNImputer
+        for col in train_input_samples.head():
+            train_input_samples_encoded.loc[
+                train_input_samples[col].isnull(), train_input_samples_encoded.columns.str.startswith(
+                    col + "_")] = np.nan
+        for col in test_df.head():
+            test_input_samples_encoded.loc[
+                test_df[col].isnull(), test_input_samples_encoded.columns.str.startswith(col + "_")] = np.nan
 
-    # KNN train data imputation
-    imp = KNNImputer(n_neighbors=10)
-    imputed_train_df = pd.DataFrame(imp.fit_transform(train_input_samples_encoded))
-    imputed_train_df.columns = train_input_samples_encoded.columns
-    imputed_train_df.index = train_input_samples_encoded.index
-    train_input_samples_encoded = imputed_train_df
+        # KNN train data imputation
+        imp = KNNImputer(n_neighbors=10)
+        imputed_train_df = pd.DataFrame(imp.fit_transform(train_input_samples_encoded))
+        imputed_train_df.columns = train_input_samples_encoded.columns
+        imputed_train_df.index = train_input_samples_encoded.index
+        train_input_samples_encoded = imputed_train_df
 
-    # KNN test data imputation
-    imp = KNNImputer(n_neighbors=10)
-    imputed_test_df = pd.DataFrame(imp.fit_transform(test_input_samples_encoded))
-    imputed_test_df.columns = test_input_samples_encoded.columns
-    imputed_test_df.index = test_input_samples_encoded.index
-    test_input_samples_encoded = imputed_test_df
+        # KNN test data imputation
+        imp = KNNImputer(n_neighbors=10)
+        imputed_test_df = pd.DataFrame(imp.fit_transform(test_input_samples_encoded))
+        imputed_test_df.columns = test_input_samples_encoded.columns
+        imputed_test_df.index = test_input_samples_encoded.index
+        test_input_samples_encoded = imputed_test_df
 
     if args.name == 'Congress':
         # Encode target
@@ -580,6 +607,7 @@ def experiments(config_file):
         # Prediction label decoder
         ple = preprocessing.LabelEncoder()
         ple.fit(train_df['Class'].unique())
+        train_target = ple.transform(train_target)
 
     # Create dataset from features and targets
     train_dataset = Dataset(np.array(train_input_samples_encoded), train_target, data_dictionary['dataset_name'])
@@ -593,32 +621,32 @@ def experiments(config_file):
     # print(train_df.describe())
 
     # if args.test == 'True':
-    # Perform predictions on testing set to save to CV
-    # do_experiment(train_dataset,
-    #               data_dictionary['dataset_name'],
-    #               int(args.seed),
-    #               list(args.k_neighbours),
-    #               list(args.n_trees),
-    #               outdir,
-    #               int(args.perceptron_iterations),
-    #               float(args.perceptron_learning_rate),
-    #               int(args.kfold),
-    #               int(args.max_depth),
-    #               test_input_samples_encoded,
-    #               ple)
+    #     # Perform predictions on testing set to save to CV
+    #     do_experiment(train_dataset,
+    #                   data_dictionary['dataset_name'],
+    #                   int(args.seed),
+    #                   list(args.k_neighbours),
+    #                   list(args.n_trees),
+    #                   outdir,
+    #                   int(args.perceptron_iterations),
+    #                   float(args.perceptron_learning_rate),
+    #                   int(args.kfold),
+    #                   int(args.max_depth),
+    #                   test_input_samples_encoded,
+    #                   ple)
     # else:
-    # Perform training and testing split among training set
-    # do_experiment(train_dataset,
-    #               data_dictionary['dataset_name'],
-    #               int(args.seed),
-    #               list(args.k_neighbours),
-    #               list(args.n_trees),
-    #               outdir,
-    #               int(args.perceptron_iterations),
-    #               float(args.perceptron_learning_rate),
-    #               int(args.kfold),
-    #               int(args.max_depth),
-    #               do_k_fold=True)
+    #     # Perform training and testing split among training set
+    #     do_experiment(train_dataset,
+    #                   data_dictionary['dataset_name'],
+    #                   int(args.seed),
+    #                   list(args.k_neighbours),
+    #                   list(args.n_trees),
+    #                   outdir,
+    #                   int(args.perceptron_iterations),
+    #                   float(args.perceptron_learning_rate),
+    #                   int(args.kfold),
+    #                   int(args.max_depth),
+    #                   do_k_fold=True)
 
     # do_experiment(datasets.load_digits(),
     #               "Digits",
@@ -643,24 +671,21 @@ def experiments(config_file):
     #                   int(args.kfold),
     #                   int(args.max_depth))
 
-    # Gridsearch among best performing models
     # Logging
     logfile = outdir + 'log.txt'
     f = open(logfile, 'w')
     f.close()
+
+    # Gridsearch among best performing models
     X_train, y_train = shuffle(train_dataset.data, train_dataset.target, random_state=int(args.seed))
     if args.name == 'Congress':
-        # do_gridsearch_SVC(X_train, y_train, logfile, random_state=int(args.seed), isAmazon=False)
-        do_gridsearch_RandomForest(X_train, y_train, logfile, random_state=int(args.seed), isAmazon=False)
+        #   #  do_gridsearch_SVC(X_train, y_train, logfile, random_state=int(args.seed), isAmazon=False)
+        # do_gridsearch_RandomForest(X_train, y_train, logfile, random_state=int(args.seed), isAmazon=False)
+        a = 1
     else:
-        do_gridsearch_SVC(X_train, y_train, logfile, random_state=int(args.seed), isAmazon=True)
-        do_gridsearch_RandomForest(X_train, y_train, logfile, random_state=int(args.seed), isAmazon=True)
-
-    # Try to delete outdir directory if empty
-    try:
-        os.rmdir(outdir)
-    except:
-        pass
+        #     do_gridsearch_SVC(X_train, y_train, logfile, random_state=int(args.seed), isAmazon=True)
+        #     do_gridsearch_RandomForest(X_train, y_train, logfile, random_state=int(args.seed), isAmazon=True)
+        do_gridsearch_Perceptron(X_train, y_train, logfile, random_state=int(args.seed), isAmazon=True)
 
 
 if __name__ == "__main__":
